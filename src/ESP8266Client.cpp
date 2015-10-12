@@ -40,7 +40,7 @@ void client_recv_cb(void *arg, char *pusrdata, unsigned short length)
 	ESP8266Client* client = (ESP8266Client*)pConn->reverse;
 	
 	if (client->onClientDataCb != 0) {
-		client->onClientDataCb(pConn, pusrdata, length);
+		client->onClientDataCb(*client, pusrdata, length);
 	}
 }
 
@@ -272,7 +272,7 @@ void ESP8266Client::onSent( void(*function)() )
 	onClientSentCb = function;
 }
 
-void ESP8266Client::onData( void (*function)(struct espconn *, char *, unsigned short) )
+void ESP8266Client::onData( void (*function)(ESP8266Client&, char *, unsigned short) )
 {
 	onClientDataCb = function;
 }

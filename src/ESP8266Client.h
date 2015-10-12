@@ -64,18 +64,18 @@ public:
 	
 	// set callbacks
 	void onSent( void(*)() );
-	void onData( void (*)(struct espconn *, char *, unsigned short) );
+	void onData( void(*)(ESP8266Client&, char *, unsigned short) );
 	
 	// tcp callbacks
-	void onConnected( void (*)(struct espconn *) );
-	void onDisconnected( void (*)(struct espconn *) );
-	void onReconnect( void (*)(struct espconn *, sint8) );
+	void onConnected( void(*)(struct espconn *) );
+	void onDisconnected( void(*)(struct espconn *) );
+	void onReconnect( void(*)(struct espconn *, sint8) );
 	
 	
 	// user callbacks
 	// general
 	void (*onClientSentCb)() = 0;
-	void (*onClientDataCb)(struct espconn *pesp_conn_client, char *data, unsigned short length) = 0;
+	void (*onClientDataCb)(ESP8266Client& client, char *data, unsigned short length) = 0;
 	
 	// tcp callbacks
 	void (*onClientConnectCb)(struct espconn *pesp_conn_client) = 0;
