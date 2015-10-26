@@ -155,15 +155,18 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 	clientConnection* conn = clientConnections;
 	while (conn) {
 		
-		if (conn->esp_conn->state == ESPCONN_CONNECT && conn->esp_conn->proto.tcp->remote_port > 0) {
+		if (conn->esp_conn->state == ESPCONN_CONNECT) {
+			
 			sint8 res = espconn_send(conn->esp_conn, data, length);
+			
 		} else if (conn->esp_conn->state == ESPCONN_WRITE) {
+			
 			// add this to busy clients
 			clientConnection* newConn = createConnection(conn->esp_conn);
 			prependConnection(newConn, &busyClients);
+			
 		} else if (conn->esp_conn->state == ESPCONN_CLOSE) {
-			// should not happen
-
+			
 			// remove from list
 			clientConnection* tofree = conn;
 			conn = conn->next;
@@ -181,12 +184,12 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 	
 	// 2 - deal with busy clients...
 	if (busyClients) {
-		conn = clientConnections;
+		conn = busyClients;
 		while (conn) {
 			
 			// deal with ESPCONN_NONE, ESPCONN_WAIT, ESPCONN_LISTEN?
 			
-			if (conn->esp_conn->state == ESPCONN_CONNECT && conn->esp_conn->proto.tcp->remote_port > 0) {
+			if (conn->esp_conn->state == ESPCONN_CONNECT) {
 				sint8 res = espconn_send(conn->esp_conn, data, length);
 				
 				// remove from list
