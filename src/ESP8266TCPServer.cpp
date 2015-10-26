@@ -211,6 +211,24 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 				// give it some time
 				esp_schedule(); // keep going?
 				esp_yield();
+			} else if (conn->esp_conn->state == ESPCONN_CLOSE) {
+				
+				// remove from list
+				clientConnection* tofree = conn;
+				conn = conn->next;
+				
+				removeConnection(tofree, &busyClients);
+				
+				if (!conn) {
+					if (!busyClients) {
+						// all done
+						break;
+					} else {
+						// start over
+						conn = busyClients;
+					}
+				}
+				
 			} else {
 				// what state?
 			}
