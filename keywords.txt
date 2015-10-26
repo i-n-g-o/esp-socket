@@ -1,0 +1,59 @@
+#######################################
+# Syntax Coloring Map For esp-sockets
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+ESP8266Client.h		KEYWORD1
+ESP8266TCPServer.h	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+# base
+isTcp		KEYWORD2
+isUdp		KEYWORD2
+send		KEYWORD2
+isSending	KEYWORD2
+
+onSent		KEYWORD2
+onData		KEYWORD2
+onConnected	KEYWORD2
+onDisconnected	KEYWORD2
+onReconnect	KEYWORD2
+
+# client
+setAddress	KEYWORD2
+setPort		KEYWORD2
+getAddress	KEYWORD2
+getPort		KEYWORD2
+
+connect		KEYWORD2
+disconnect	KEYWORD2
+isConnected	KEYWORD2
+isConnecting	KEYWORD2
+
+# server
+start		KEYWORD2
+stop		KEYWORD2
+setTimeout	KEYWORD2
+setMaxClients	KEYWORD2
+getMaxClients	KEYWORD2
+connectionInfo	KEYWORD2
+sendAll		KEYWORD2
+
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+ESP8266Client		KEYWORD1
+ESP8266TCPServer	KEYWORD1
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+

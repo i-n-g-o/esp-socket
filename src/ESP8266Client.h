@@ -20,72 +20,52 @@
 #ifndef ESP8266_SOCKET_CLIENT
 #define ESP8266_SOCKET_CLIENT
 
-#include "IPAddress.h"
-
-#include <stddef.h>
-//#include <stdint.h>
-//#include <stdbool.h>
-//#include <stdarg.h>
-//#include <string.h>
+#include "ESP8266SocketBase.h"
 
 
-extern "C" {
-//	#include "ets_sys.h"
-//	#include "osapi.h"
-//	#include "os_type.h"
-//	#include "c_types.h"
-	#include "mem.h"
-	#include "ip_addr.h"
-	#include "espconn.h"
-}
+/* TODO
+ use internal buffer for data to send... if buffer is full yield
+ */
 
 
-#define TCP ESPCONN_TCP
-#define UDP ESPCONN_UDP
-
-class ESP8266Client
+class ESP8266Client : public ESP8266SocketBase
 {
 public:
-	ESP8266Client();
-	ESP8266Client(IPAddress& address, int port, espconn_type type = TCP);
+	ESP8266Client(const char* addr, int port, espconn_type type = TCP);
 	ESP8266Client(struct espconn* _esp_conn);
 	~ESP8266Client();
 	
-	void setAddress(IPAddress& address);
+	void setAddress(uint32_t address);
+	void setAddress(uint8 ip0, uint8 ip1, uint8 ip2, uint8 ip3);
 	void setPort(int port);
 	
-	bool isTcp() { return esp_conn->type == ESPCONN_TCP; };
-	bool isUdp() { return esp_conn->type == ESPCONN_UDP; };
-
+	uint32_t getAddress();
+	int getPort();
+	
 	
 	bool connect();
 	bool disconnect();
-	bool send(uint8 *data, uint16 length);
+
+	bool isConnected() { return m_bIsConnected; };
+	bool isConnecting() { return m_bIsConnecting; };
+
+	virtual sint8 send(uint8 *data, uint16 length);
+	using ESP8266SocketBase::send;
 	
-	// set callbacks
-	void onSent( void(*)() );
-	void onData( void(*)(ESP8266Client&, char *, unsigned short) );
+	//----------------------------
+	// internal callbacks - override
+	void _onClientDataCb(struct espconn *pesp_conn, char *data, unsigned short length);
 	
-	// tcp callbacks
-	void onConnected( void(*)(struct espconn *) );
-	void onDisconnected( void(*)(struct espconn *) );
-	void onReconnect( void(*)(struct espconn *, sint8) );
+	void _onClientConnectCb(struct espconn *pesp_conn_client);
+	void _onClientDisconnectCb(struct espconn *pesp_conn_client);
+	void _onClientReconnectCb(struct espconn *pesp_conn_client, sint8 err);
 	
-	
-	// user callbacks
-	// general
-	void (*onClientSentCb)() = 0;
-	void (*onClientDataCb)(ESP8266Client& client, char *data, unsigned short length) = 0;
-	
-	// tcp callbacks
-	void (*onClientConnectCb)(struct espconn *pesp_conn_client) = 0;
-	void (*onClientDisconnectCb)(struct espconn *pesp_conn_client) = 0;
-	void (*onClientReconnectCb)(struct espconn *pesp_conn_client, sint8 err) = 0;
 	
 private:
-	struct espconn*		esp_conn;
 	int					remotePort;
-	bool				external;	
+	
+	bool				m_bIsConnected;
+	bool				m_bIsConnecting;
 };
 
 

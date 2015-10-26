@@ -19,102 +19,20 @@
 #include "ESP8266TCPServer.h"
 
 
-/*
- * general callbacks
- */
-LOCAL ICACHE_FLASH_ATTR
-void server_sent_cb(void *arg)
-{
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266TCPServer* server = (ESP8266TCPServer*)pConn->reverse;
-	
-	if (server->onServerSentCb != 0) {
-		server->onServerSentCb();
-	}
-}
-
-LOCAL ICACHE_FLASH_ATTR
-void server_recv_cb(void *arg, char *pusrdata, unsigned short length)
-{
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266TCPServer* server = (ESP8266TCPServer*)pConn->reverse;
-	
-	ESP8266Client client(pConn);
-	
-	if (server->onClientDataCb != 0) {
-		server->onClientDataCb(client, pusrdata, length);
-	}
-}
-
-/*
- * TCP callbacks
- */
-LOCAL ICACHE_FLASH_ATTR
-void server_connect_cb(void *arg)
-{
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266TCPServer* server = (ESP8266TCPServer*)pConn->reverse;
-	
-	ESP8266Client client(pConn);
-	
-	if (server->onClientConnectCb != 0) {
-		server->onClientConnectCb(client);
-	}
-}
-
-LOCAL ICACHE_FLASH_ATTR
-void server_discon_cb(void *arg)
-{
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266TCPServer* server = (ESP8266TCPServer*)pConn->reverse;
-	
-	ESP8266Client client(pConn);
-	
-	if (server->onClientDisconnectCb != 0) {
-		server->onClientDisconnectCb(client);
-	}
-}
-
-LOCAL ICACHE_FLASH_ATTR
-void server_recon_cb(void *arg, sint8 err)
-{
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266TCPServer* server = (ESP8266TCPServer*)pConn->reverse;
-	
-	ESP8266Client client(pConn);
-	
-	if (server->onClientReconnectCb != 0) {
-		server->onClientReconnectCb(client, err);
-	}
-}
-
-
-
-/*
- *
- */
-ESP8266TCPServer::ESP8266TCPServer(int port) :
-	timeout(0)
+//----------------------------
+//----------------------------
+// constructor
+//----------------------------
+//----------------------------
+ESP8266TCPServer::ESP8266TCPServer(int port) : ESP8266SocketBase()
+	,timeout(0)
 	,maxClients(16)
 	,bIsSecure(0)
+	,clientConnections(0)
 {
 	sint8 res;
 	
-	esp_conn_server.type = ESPCONN_TCP;
-	esp_conn_server.state = ESPCONN_NONE;
-	esp_conn_server.proto.tcp = &esptcp;
-	esp_conn_server.proto.tcp->local_port = port;
-	
-	esp_conn_server.reverse = (void*)this;
-	
-	// general callbacks
-	res = espconn_regist_sentcb(&esp_conn_server, server_sent_cb);
-	res = espconn_regist_recvcb(&esp_conn_server, server_recv_cb);
-	
-	// set tcp callbacks
-	res = espconn_regist_connectcb(&esp_conn_server, server_connect_cb);
-	res = espconn_regist_reconcb(&esp_conn_server, server_recon_cb);
-	res = espconn_regist_disconcb(&esp_conn_server, server_discon_cb);
+	esp_conn->proto.tcp->local_port = port;
 	
 	// default never timeout clients
 	setTimeout(timeout);
@@ -123,26 +41,21 @@ ESP8266TCPServer::ESP8266TCPServer(int port) :
 }
 
 
-ESP8266TCPServer::~ESP8266TCPServer()
-{
-	stop();
-}
-
-
-
-/*
- *
- */
+//----------------------------
+//----------------------------
+// methods
+//----------------------------
+//----------------------------
 bool ESP8266TCPServer::start()
 {
 	// start server
-	sint8 res = espconn_accept(&esp_conn_server);
+	sint8 res = espconn_accept(esp_conn);
 	if (res != ESPCONN_OK) {
 		// error
 		return false;
 	}
-	
-	res = espconn_regist_time(&esp_conn_server, timeout, 0);
+
+	res = espconn_regist_time(esp_conn, timeout, 0);
 	
 	return res == ESPCONN_OK;
 }
@@ -151,7 +64,7 @@ bool ESP8266TCPServer::start()
 bool ESP8266TCPServer::stop()
 {
 	// stop server
-	espconn_delete(&esp_conn_server);
+	espconn_delete(esp_conn);
 }
 
 
@@ -163,7 +76,7 @@ bool ESP8266TCPServer::setTimeout(uint32 interval)
 	timeout = interval;
 	
 	// set timeout
-	sint8 res = espconn_regist_time(&esp_conn_server, timeout, 0);
+	sint8 res = espconn_regist_time(esp_conn, timeout, 0);
 	return res == ESPCONN_OK;
 }
 
@@ -172,100 +85,240 @@ bool ESP8266TCPServer::setMaxClients(uint8 max)
 	maxClients = max;
 	
 	// set max clients
-	sint8 res = espconn_tcp_set_max_con_allow(&esp_conn_server, maxClients);
-	return res == ESPCONN_OK;	
+	sint8 res = espconn_tcp_set_max_con_allow(esp_conn, maxClients);
+	return res == ESPCONN_OK;
 }
 
 remot_info* ESP8266TCPServer::connectionInfo()
 {
 	remot_info* clients;
-	sint8 res = espconn_get_connection_info(&esp_conn_server, &clients, bIsSecure);
+	sint8 res = espconn_get_connection_info(esp_conn, &clients, bIsSecure);
 	
-//	for (int i=0; i<maxClients; i++) {
-//		remot_info conn = clients[i];
-//		if (conn.state == ESPCONN_CONNECT) {
-//			
-//		}
-//	}
+	return clients;
 }
 
-/*
- *
- */
-bool ESP8266TCPServer::send(uint8 *data, uint16 length)
-{
-	// send
-	sint8 res = espconn_send(&esp_conn_server, data, length);
-	return res == ESPCONN_OK;
-}
-
-bool ESP8266TCPServer::send(uint8 clientId, uint8 *data, uint16 length)
+//----------------------------
+// send methods
+//----------------------------
+// send to one
+sint8 ESP8266TCPServer::send(uint8 clientId, uint8 *data, uint16 length)
 {
 	if (clientId >= maxClients) {
 		return false;
 	}
 	
 	remot_info* clients;
-	sint8 res = espconn_get_connection_info(&esp_conn_server, &clients, bIsSecure);
+	sint8 res = espconn_get_connection_info(esp_conn, &clients, bIsSecure);
 	
-	remot_info conn = clients[clientId];
+	remot_info connInfo = clients[clientId];
+	// validate?
 	
-	if (conn.state == ESPCONN_CONNECT && conn.remote_port > 0) {
-		// setup remote info
-		esptcp.remote_port = conn.remote_port;
-		os_memcpy((void*)esptcp.remote_ip, (void*)conn.remote_ip, 4);
+	uint32_t clientAddr;
+	os_memcpy((void*)&clientAddr, (void*)connInfo.remote_ip, 4);
+	
+	
+	// get espconn of client
+	clientConnection* client_conn = findConnectionAddrPort(clientConnections, clientAddr, connInfo.remote_port);
+	
+	if (!client_conn) {
+		return UNKNOWN_ERROR;
+	}
 		
-		 return send(data, length);
+	
+	// TODO: check for connected status!!
+	while (client_conn->esp_conn->state == ESPCONN_WRITE) {
+		esp_schedule(); // keep going?
+		esp_yield();
 	}
 	
-	return false;
+	if (client_conn->esp_conn->state == ESPCONN_CONNECT) {
+		
+		sint8 res = espconn_send(client_conn->esp_conn, data, length);
+		return res;
+	}
+	
+	return UNKNOWN_ERROR;
 }
 
-bool ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
+sint8 ESP8266TCPServer::send(uint8 clientId, const char* data)
 {
-	remot_info* clients;
-	sint8 res = espconn_get_connection_info(&esp_conn_server, &clients, bIsSecure);
+	return send(clientId, (uint8*)data, strlen(data));
+}
+
+// send to all
+sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
+{
+	// two-pass sending
+	clientConnection* busyClients = 0;
 	
-	for (int i=0; i<maxClients; i++) {
-		remot_info conn = clients[i];
-		// check state
-		if (conn.state == ESPCONN_CONNECT && conn.remote_port > 0) {
-			// setup remote info
-			esptcp.remote_port = conn.remote_port;
-			os_memcpy((void*)esptcp.remote_ip, (void*)conn.remote_ip, 4);
+	// 1 - try to send everything
+	clientConnection* conn = clientConnections;
+	while (conn) {
+		
+		if (conn->esp_conn->state == ESPCONN_CONNECT && conn->esp_conn->proto.tcp->remote_port > 0) {
+			sint8 res = espconn_send(conn->esp_conn, data, length);
+		} else if (conn->esp_conn->state == ESPCONN_WRITE) {
+			// add this to busy clients
+			clientConnection* newConn = createConnection(conn->esp_conn);
+			prependConnection(newConn, &busyClients);
+		} else if (conn->esp_conn->state == ESPCONN_CLOSE) {
+			// should not happen
+
+			// remove from list
+			clientConnection* tofree = conn;
+			conn = conn->next;
 			
-			bool result = send(data, length);
-			if (!result) {
-				// handle error
+			removeConnection(tofree, &clientConnections);
+			continue;
+			
+		} else {
+			// what state?
+			//
+		}
+		
+		conn = conn->next;
+	}
+	
+	// 2 - deal with busy clients...
+	if (busyClients) {
+		conn = clientConnections;
+		while (conn) {
+			
+			// deal with ESPCONN_NONE, ESPCONN_WAIT, ESPCONN_LISTEN?
+			
+			if (conn->esp_conn->state == ESPCONN_CONNECT && conn->esp_conn->proto.tcp->remote_port > 0) {
+				sint8 res = espconn_send(conn->esp_conn, data, length);
+				
+				// remove from list
+				clientConnection* tofree = conn;
+				conn = conn->next;
+				
+				removeConnection(tofree, &busyClients);
+				
+				if (!conn) {
+					if (!busyClients) {
+						// all done
+						break;
+					} else {
+						// start over
+						conn = busyClients;
+					}
+				}
+				
+				continue;
+				
+			} else if (conn->esp_conn->state == ESPCONN_WRITE) {
+				// give it some time
+				esp_schedule(); // keep going?
+				esp_yield();
+			} else {
+				// what state?
+			}
+			
+			//
+			conn = conn->next;
+			if (!conn) {
+				if (!busyClients) {
+					// all done
+					break;
+				} else {
+					// start over
+					conn = busyClients;
+				}
 			}
 		}
 	}
+	
+	return ESPCONN_OK;
+}
+
+sint8 ESP8266TCPServer::sendAll(const char* data)
+{
+	return sendAll((uint8*)data, strlen(data));
 }
 
 
-/*
- * set callbacks
- */
-void ESP8266TCPServer::onSent( void (*function)() )
+//----------------------------
+//----------------------------
+// espconn callbacks
+//----------------------------
+//----------------------------
+void ESP8266TCPServer::_onClientDataCb(struct espconn *pesp_conn, char *data, unsigned short length)
 {
-	onServerSentCb = function;
+	// set incoming client as current connection
+	esp_conn->proto.tcp->remote_port = pesp_conn->proto.tcp->remote_port;
+	os_memcpy((void*)esp_conn->proto.tcp->remote_ip, (void*)pesp_conn->proto.tcp->remote_ip, 4);
+
+	// call user CB
+	if (onClientDataCb != 0) {
+		ESP8266Client client(pesp_conn);
+		onClientDataCb(client, data, length);
+	}
 }
-void ESP8266TCPServer::onData( void (*function)(ESP8266Client&, char *, unsigned short) )
+//----------------------------
+//----------------------------
+// TCP callbacks
+//----------------------------
+//----------------------------
+void ESP8266TCPServer::_onClientConnectCb(struct espconn *pesp_conn)
 {
-	onClientDataCb = function;
+	// new clientconnection
+	clientConnection* newConnection = createConnection(pesp_conn);
+	
+	// prepend to chained list
+	prependConnection(newConnection, &clientConnections);
+	
+	printConnections(clientConnections);
+	
+	// call user CB
+	if (onClientConnectCb != 0) {
+		ESP8266Client client(pesp_conn);
+		onClientConnectCb(client);
+	}
 }
 
-// tcp callbacks
-void ESP8266TCPServer::onConnected( void (*function)(ESP8266Client&) )
+void ESP8266TCPServer::_onClientDisconnectCb(struct espconn *pesp_conn)
 {
-	onClientConnectCb = function;
+	// receiving servers espconn
+	
+	// get remote-ip-port from client
+	int remoteP = pesp_conn->proto.tcp->remote_port;
+	uint32_t remoteAddr;
+	os_memcpy((void*)&remoteAddr, (void*)pesp_conn->proto.tcp->remote_ip, 4);
+	
+	// search for espconn in connections and remove
+	removeConnectionAddrPort(&clientConnections, remoteAddr, remoteP);
+
+	printConnections(clientConnections);
+	
+	// call user CB
+	if (onClientDisconnectCb != 0) {
+		onClientDisconnectCb();
+	}
 }
-void ESP8266TCPServer::onDisconnected( void (*function)(ESP8266Client&) )
+
+void ESP8266TCPServer::_onClientReconnectCb(struct espconn *pesp_conn, sint8 err)
 {
-	onClientDisconnectCb = function;
-}
-void ESP8266TCPServer::onReconnected( void (*function)(ESP8266Client&, sint8) )
-{
-	onClientReconnectCb = function;
+	// receiving servers espconn
+	
+	// get remote-ip-port from client
+	int remoteP = pesp_conn->proto.tcp->remote_port;
+	uint32_t remoteAddr;
+	os_memcpy((void*)&remoteAddr, (void*)pesp_conn->proto.tcp->remote_ip, 4);
+	
+	
+	// remove client from list??
+	clientConnection* clientConn = findConnectionAddrPort(clientConnections, remoteAddr, remoteP);
+	if (clientConn) {
+		removeConnection(clientConn, &clientConnections);
+	}
+	
+	printConnections(clientConnections);
+	
+	// call user CB
+	if (onClientReconnectCb != 0) {
+		ESP8266Client client(pesp_conn);
+		onClientReconnectCb(client, err);
+	}
 }
 

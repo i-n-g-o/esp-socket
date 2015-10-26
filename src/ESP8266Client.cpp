@@ -18,41 +18,200 @@
  //-------------------------------------------------------------------------------*/
 #include "ESP8266Client.h"
 
-/*
- * general callbacks
- */
-LOCAL ICACHE_FLASH_ATTR
-void client_sent_cb(void *arg)
+
+//----------------------------
+//----------------------------
+// constructor
+//----------------------------
+//----------------------------
+ESP8266Client::ESP8266Client(const char* addr, int port, espconn_type type) :
+	ESP8266SocketBase(type)
 {
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266Client* client = (ESP8266Client*)pConn->reverse;
-	
-	if (client->onClientSentCb != 0) {
-		client->onClientSentCb();
+	setPort(port);
+	setAddress(ipaddr_addr(addr));
+}
+
+ESP8266Client::ESP8266Client(struct espconn* _esp_conn) : ESP8266SocketBase(_esp_conn)
+	,m_bIsConnected(true)
+	,m_bIsConnecting(false)
+{
+	// set remotePort from espconn
+	if (isTcp()) {
+		remotePort = esp_conn->proto.tcp->remote_port;
+	} else if (isUdp()) {
+		remotePort = esp_conn->proto.udp->remote_port;
 	}
 }
 
 
-LOCAL ICACHE_FLASH_ATTR
-void client_recv_cb(void *arg, char *pusrdata, unsigned short length)
+ESP8266Client::~ESP8266Client()
 {
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266Client* client = (ESP8266Client*)pConn->reverse;
-	
-	if (client->onClientDataCb != 0) {
-		client->onClientDataCb(*client, pusrdata, length);
+	if (!m_bIsExternal) {
+		disconnect();
 	}
 }
 
 
-/* 
- * TCP callbacks
- */
-LOCAL ICACHE_FLASH_ATTR
-void client_connect_cb(void *arg)
+//----------------------------
+//----------------------------
+// methods
+//----------------------------
+//----------------------------
+
+// address
+void ESP8266Client::setAddress(uint32_t address)
 {
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266Client* server = (ESP8266Client*)pConn->reverse;
+	if (isTcp()) {
+		os_memcpy(esp_conn->proto.tcp->remote_ip, &address, 4);
+	} else if (isUdp()) {
+		os_memcpy(esp_conn->proto.udp->remote_ip, &address, 4);
+	}
+}
+
+void ESP8266Client::setAddress(uint8 ip0, uint8 ip1, uint8 ip2, uint8 ip3)
+{
+	if (isTcp()) {
+
+		// set remote ip
+		esp_conn->proto.tcp->remote_ip[0] = ip0;
+		esp_conn->proto.tcp->remote_ip[1] = ip1;
+		esp_conn->proto.tcp->remote_ip[2] = ip2;
+		esp_conn->proto.tcp->remote_ip[3] = ip3;
+
+	} else if (isUdp()) {
+		
+		// set remote ip
+		esp_conn->proto.udp->remote_ip[0] = ip0;
+		esp_conn->proto.udp->remote_ip[1] = ip1;
+		esp_conn->proto.udp->remote_ip[2] = ip2;
+		esp_conn->proto.udp->remote_ip[3] = ip3;
+	}
+}
+
+uint32_t ESP8266Client::getAddress()
+{
+	uint32_t addr = 0;
+	
+	if (isTcp()) {
+		os_memcpy(&addr, esp_conn->proto.tcp->remote_ip, 4);
+	} else if (isUdp()) {
+		os_memcpy(&addr, esp_conn->proto.udp->remote_ip, 4);
+	}
+	
+	return addr;
+}
+
+// port
+void ESP8266Client::setPort(int port)
+{
+	remotePort = port;
+	
+	if (isTcp()) {
+		esp_conn->proto.tcp->remote_port = port;
+	} else if (isUdp()) {
+		
+		esp_conn->proto.udp->remote_port = port;
+		//???
+		esp_conn->proto.udp->local_port = port; //espconn_port();
+	}
+}
+
+int ESP8266Client::getPort()
+{
+	if (isTcp()) {
+		return esp_conn->proto.tcp->remote_port;
+	} else if (isUdp()) {
+		return esp_conn->proto.udp->remote_port;
+	}
+	
+	return remotePort;
+}
+
+
+//----------------------------
+// connect / disconnect
+//----------------------------
+bool ESP8266Client::connect()
+{
+	// already connecting?
+	if (m_bIsConnecting) {
+		return false;
+	}
+	
+	// if connected... disconnect first
+	if (m_bIsConnected) {
+		disconnect();
+	}
+	
+	sint8 res = 0;
+	if (isTcp()) {
+		res = espconn_connect(esp_conn);
+		if (res == ESPCONN_OK) {
+			m_bIsConnecting = true;
+		}
+	} else if (isUdp()) {
+		res = espconn_create(esp_conn);
+		m_bIsConnected = true;
+		m_bIsConnecting = false;
+	}
+	
+	return res == ESPCONN_OK;
+}
+
+bool ESP8266Client::disconnect()
+{
+	sint8 res = ESPCONN_OK;
+	
+	m_bIsConnecting = false;
+	
+	if (isTcp()) {
+		res = espconn_disconnect(esp_conn);
+	} else {
+		espconn_delete(esp_conn);
+		m_bIsConnected = false;
+	}
+	
+	return res == ESPCONN_OK;
+}
+
+
+//----------------------------
+// sending
+//----------------------------
+sint8 ESP8266Client::send(uint8 *data, uint16 length)
+{
+	// safety - needed?
+	setPort(remotePort);
+
+	return ESP8266SocketBase::send(data, length);
+}
+
+
+//----------------------------
+//----------------------------
+// espconn callbacks
+//----------------------------
+//----------------------------
+void ESP8266Client::_onClientDataCb(struct espconn *pesp_conn, char *data, unsigned short length)
+{
+	if (onClientDataCb != 0) {
+		onClientDataCb(*this, data, length);
+	}
+}
+
+//----------------------------
+//----------------------------
+// TCP callbacks
+//----------------------------
+//----------------------------
+void ESP8266Client::_onClientConnectCb(struct espconn *pesp_conn_client)
+{
+	m_bIsConnected = true;
+	m_bIsConnecting = false;
+	
+	if (onClientConnectCb != 0) {
+		onClientConnectCb(*this);
+	}
 	
 	// consider:
 	//	enum espconn_option{
@@ -66,230 +225,33 @@ void client_connect_cb(void *arg)
 	// first enable keepalive
 	//	sint8 espconn_set_opt( struct espconn *espconn, uint8 opt)
 	// then turn it on
-//	enum espconn_level{
-//		ESPCONN_KEEPIDLE,
-//		ESPCONN_KEEPINTVL,
-//		ESPCONN_KEEPCNT
-//	};
+	//	enum espconn_level{
+	//		ESPCONN_KEEPIDLE,
+	//		ESPCONN_KEEPINTVL,
+	//		ESPCONN_KEEPCNT
+	//	};
 	// sint8 espconn_set_keepalive(struct espconn *espconn, uint8 level, void* optarg)
+}
+
+void ESP8266Client::_onClientDisconnectCb(struct espconn *pesp_conn_client)
+{
+	// set internal state
+	m_bIsConnected = false;
+	m_bIsConnecting = false;
 	
-	if (server->onClientConnectCb != 0) {
-		server->onClientConnectCb(pConn);
+	if (onClientDisconnectCb != 0) {
+		onClientDisconnectCb();
 	}
 }
 
-LOCAL ICACHE_FLASH_ATTR
-void client_discon_cb(void *arg)
+void ESP8266Client::_onClientReconnectCb(struct espconn *pesp_conn_client, sint8 err)
 {
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266Client* server = (ESP8266Client*)pConn->reverse;
-	
-	if (server->onClientDisconnectCb != 0) {
-		server->onClientDisconnectCb(pConn);
+	// set internal state
+	m_bIsConnected = false;
+	m_bIsConnecting = false;
+		
+	if (onClientReconnectCb != 0) {
+		onClientReconnectCb(*this, err);
 	}
 }
-
-LOCAL ICACHE_FLASH_ATTR
-void client_recon_cb(void *arg, sint8 err)
-{
-	struct espconn *pConn = (struct espconn*)arg;
-	ESP8266Client* server = (ESP8266Client*)pConn->reverse;
-	
-	if (server->onClientReconnectCb != 0) {
-		server->onClientReconnectCb(pConn, err);
-	}
-}
-
-
-/*
- * Constructor
- */
-ESP8266Client::ESP8266Client() :
-	external(false)
-{
-	sint8 res;
-	
-	// create a control structure
-	esp_conn = (struct espconn*)os_malloc(sizeof(struct espconn));
-	os_memset(esp_conn, 0, sizeof(struct espconn));
-	
-	esp_conn->state = ESPCONN_NONE;
-	esp_conn->reverse = (void*)this;
-	
-	// set callbacks
-	res = espconn_regist_recvcb(esp_conn, client_recv_cb);
-	res = espconn_regist_sentcb(esp_conn, client_sent_cb);
-}
-
-ESP8266Client::ESP8266Client(IPAddress& address, int port, espconn_type type) : ESP8266Client()
-{
-	// safety
-	if (type <= 0 || type > ESPCONN_UDP) {
-		type = ESPCONN_TCP;
-	}
-	
-	// set connection type
-	esp_conn->type = type;
-	
-	// create tcp/udp structures
-	if (esp_conn->type == ESPCONN_TCP) {
-		
-		esp_conn->proto.tcp = (esp_tcp*)os_malloc(sizeof(esp_tcp));
-		os_memset(esp_conn->proto.tcp, 0, sizeof(esp_tcp));
-		
-	} else if (esp_conn->type == ESPCONN_UDP) {
-		
-		esp_conn->proto.udp = (esp_udp*)os_malloc(sizeof(esp_udp));
-		os_memset(esp_conn->proto.udp, 0, sizeof(esp_udp));
-		
-	}
-
-	setPort(port);
-	setAddress(address);
-}
-
-ESP8266Client::ESP8266Client(struct espconn* _esp_conn)
-{
-	external = true;
-	esp_conn = _esp_conn;
-	
-	// set remotePort
-	if (esp_conn->type == ESPCONN_TCP) {
-		
-		remotePort = esp_conn->proto.tcp->remote_port;
-		
-	} else if (esp_conn->type == ESPCONN_UDP) {
-		
-		remotePort = esp_conn->proto.udp->remote_port;
-	}
-}
-
-
-ESP8266Client::~ESP8266Client()
-{
-	if (!external) {
-		disconnect();
-		// cleanup
-		if (esp_conn->type == ESPCONN_TCP) {
-			os_free(esp_conn->proto.tcp);
-		} else if (esp_conn->type == ESPCONN_UDP) {
-			os_free(esp_conn->proto.udp);
-		}
-		
-		os_free(esp_conn);
-	}
-}
-
-
-/*
- * methods
- */
-void ESP8266Client::setAddress(IPAddress& address)
-{
-	if (esp_conn->type == ESPCONN_TCP) {
-
-		// set remote ip
-		esp_conn->proto.tcp->remote_ip[0] = address[0];
-		esp_conn->proto.tcp->remote_ip[1] = address[1];
-		esp_conn->proto.tcp->remote_ip[2] = address[2];
-		esp_conn->proto.tcp->remote_ip[3] = address[3];
-		
-		// set callbacks
-		espconn_regist_connectcb(esp_conn, client_connect_cb);
-		espconn_regist_reconcb(esp_conn, client_recon_cb);
-		espconn_regist_disconcb(esp_conn, client_discon_cb);
-		// not using
-//		espconn_regist_write_finish
-
-	} else if (esp_conn->type == ESPCONN_UDP) {
-		
-		// set remote ip
-		esp_conn->proto.udp->remote_ip[0] = address[0];
-		esp_conn->proto.udp->remote_ip[1] = address[1];
-		esp_conn->proto.udp->remote_ip[2] = address[2];
-		esp_conn->proto.udp->remote_ip[3] = address[3];
-	}
-}
-
-void ESP8266Client::setPort(int port)
-{
-	remotePort = port;
-	
-	if (esp_conn->type == ESPCONN_TCP) {
-		
-		esp_conn->proto.tcp->remote_port = port;
-		
-	} else if (esp_conn->type == ESPCONN_UDP) {
-		
-		esp_conn->proto.udp->remote_port = port;
-		esp_conn->proto.udp->local_port = port;
-		
-	}
-}
-
-
-//
-bool ESP8266Client::connect()
-{
-	sint8 res = 0;
-	if (esp_conn->type == ESPCONN_TCP) {
-		res = espconn_connect(esp_conn);
-	} else if (esp_conn->type == ESPCONN_UDP) {
-		res = espconn_create(esp_conn);
-	}
-	
-	return res == ESPCONN_OK;
-}
-
-bool ESP8266Client::disconnect()
-{
-	sint8 res;
-	if (esp_conn->type == ESPCONN_TCP) {
-		res = espconn_disconnect(esp_conn);
-	} else {
-		espconn_delete(esp_conn);
-		return true;
-	}
-	return res == ESPCONN_OK;
-}
-
-
-//
-bool ESP8266Client::send(uint8 *data, uint16 length)
-{
-	// safety
-	setPort(remotePort);
-	
-	// send
-	sint8 res = espconn_send(esp_conn, data, length);
-	return res == ESPCONN_OK;
-}
-
-
-// set callbacks
-void ESP8266Client::onSent( void(*function)() )
-{
-	onClientSentCb = function;
-}
-
-void ESP8266Client::onData( void (*function)(ESP8266Client&, char *, unsigned short) )
-{
-	onClientDataCb = function;
-}
-
-// tcp
-void ESP8266Client::onConnected( void (*function)(struct espconn *) )
-{
-	onClientConnectCb = function;
-}
-void ESP8266Client::onDisconnected( void (*function)(struct espconn *) )
-{
-	onClientDisconnectCb = function;
-}
-void ESP8266Client::onReconnect( void (*function)(struct espconn *, sint8) )
-{
-	onClientReconnectCb = function;
-}
-
-
 
