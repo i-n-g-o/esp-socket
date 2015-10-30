@@ -175,16 +175,16 @@ bool ESP8266Client::disconnect()
 }
 
 
-//----------------------------
-// sending
-//----------------------------
-sint8 ESP8266Client::send(uint8 *data, uint16 length)
-{
-	// safety - needed?
-	setPort(remotePort);
-
-	return ESP8266SocketBase::send(data, length);
-}
+////----------------------------
+//// sending
+////----------------------------
+//sint8 ESP8266Client::send(uint8 *data, uint16 length)
+//{
+//	// safety - needed?
+////	setPort(remotePort);
+//
+//	return ESP8266SocketBase::send(data, length);
+//}
 
 
 //----------------------------
@@ -212,25 +212,6 @@ void ESP8266Client::_onClientConnectCb(struct espconn *pesp_conn_client)
 	if (onClientConnectCb != 0) {
 		onClientConnectCb(*this);
 	}
-	
-	// consider:
-	//	enum espconn_option{
-	//		ESPCONN_START = 0x00,
-	//		ESPCONN_REUSEADDR = 0x01,
-	//		ESPCONN_NODELAY = 0x02,
-	//		ESPCONN_COPY = 0x04,
-	//		ESPCONN_KEEPALIVE = 0x08,
-	//		ESPCONN_END
-	//	};
-	// first enable keepalive
-	//	sint8 espconn_set_opt( struct espconn *espconn, uint8 opt)
-	// then turn it on
-	//	enum espconn_level{
-	//		ESPCONN_KEEPIDLE,
-	//		ESPCONN_KEEPINTVL,
-	//		ESPCONN_KEEPCNT
-	//	};
-	// sint8 espconn_set_keepalive(struct espconn *espconn, uint8 level, void* optarg)
 }
 
 void ESP8266Client::_onClientDisconnectCb(struct espconn *pesp_conn_client)
@@ -249,7 +230,7 @@ void ESP8266Client::_onClientReconnectCb(struct espconn *pesp_conn_client, sint8
 	// set internal state
 	m_bIsConnected = false;
 	m_bIsConnecting = false;
-		
+	
 	if (onClientReconnectCb != 0) {
 		onClientReconnectCb(*this, err);
 	}

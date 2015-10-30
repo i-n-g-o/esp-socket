@@ -24,6 +24,8 @@ onData		KEYWORD2
 onConnected	KEYWORD2
 onDisconnected	KEYWORD2
 onReconnect	KEYWORD2
+onInfo		KEYWORD2
+onError		KEYWORD2
 
 # client
 setAddress	KEYWORD2

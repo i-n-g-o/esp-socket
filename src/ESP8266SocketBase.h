@@ -24,12 +24,9 @@
 #include <string.h>
 
 
-extern "C"
-{
+extern "C" {
 	#include "ets_sys.h"
 	#include "osapi.h"
-//	#include "os_type.h"
-//	#include "c_types.h"
 	#include "mem.h"
 	#include "ip_addr.h"
 	#include "espconn.h"
@@ -41,6 +38,32 @@ extern "C"
 
 #define TCP ESPCONN_TCP
 #define UDP ESPCONN_UDP
+
+
+// copied from SDK 1.3.0
+// /* Definitions for error constants. */
+//
+//#define ESPCONN_OK          0    /* No error, everything OK. */
+//#define ESPCONN_MEM        -1    /* Out of memory error.     */
+//#define ESPCONN_TIMEOUT    -3    /* Timeout.                 */
+//#define ESPCONN_RTE        -4    /* Routing problem.         */
+//#define ESPCONN_INPROGRESS  -5    /* Operation in progress    */
+//
+//#define ESPCONN_ABRT       -8    /* Connection aborted.      */
+//#define ESPCONN_RST        -9    /* Connection reset.        */
+//#define ESPCONN_CLSD       -10   /* Connection closed.       */
+//#define ESPCONN_CONN       -11   /* Not connected.           */
+//
+//#define ESPCONN_ARG        -12   /* Illegal argument.        */
+//#define ESPCONN_ISCONN     -15   /* Already connected.       */
+//
+//#define ESPCONN_HANDSHAKE  -28   /* ssl handshake failed	 */
+//#define ESPCONN_SSL_INVALID_DATA  -61   /* ssl application invalid	 */
+
+
+// additional error
+#define ESP_UNKNOWN_ERROR       -100				/* Unknown error.           */
+
 
 
 class ESP8266Client;
@@ -73,6 +96,10 @@ public:
 	void onDisconnected( void(*)() );
 	void onReconnect( void(*)(ESP8266Client&, sint8) );
 	
+	// info, error
+	void onInfo( void(*)(const char*) );
+	void onError( void(*)(const char*, sint8) );
+	
 	//----------------------------
 	// internal callbacks
 	// general
@@ -85,6 +112,9 @@ public:
 	virtual void _onClientReconnectCb(struct espconn *pesp_conn_client, sint8 err) = 0;
 	
 protected:
+	void info(const char* info);
+	void error(const char* error, sint8 err);
+	
 	struct espconn*		esp_conn;
 	bool				m_bIsExternal;
 	
@@ -97,6 +127,10 @@ protected:
 	void (*onClientConnectCb)(ESP8266Client& client) = 0;
 	void (*onClientDisconnectCb)() = 0;
 	void (*onClientReconnectCb)(ESP8266Client& client, sint8 err) = 0;
+	
+	// info, error
+	void (*onInfoCb)(const char* error) = 0;
+	void (*onErrorCb)(const char* error, sint8 err) = 0;
 	
 private:
 	void* reverse_external;

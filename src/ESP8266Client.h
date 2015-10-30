@@ -24,7 +24,7 @@
 
 
 /* TODO
- use internal buffer for data to send... if buffer is full yield
+ use internal buffer for data to send... if buffer is full yield?
  */
 
 
@@ -49,8 +49,8 @@ public:
 	bool isConnected() { return m_bIsConnected; };
 	bool isConnecting() { return m_bIsConnecting; };
 
-	virtual sint8 send(uint8 *data, uint16 length);
-	using ESP8266SocketBase::send;
+//	virtual sint8 send(uint8 *data, uint16 length);
+//	using ESP8266SocketBase::send;
 	
 	//----------------------------
 	// internal callbacks - override

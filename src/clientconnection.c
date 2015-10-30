@@ -19,7 +19,7 @@
 #include "clientconnection.h"
 
 
-void prependConnection(clientConnection* newConn, clientConnection** conn)
+void prependConn(clientConn* newConn, clientConn** conn)
 {
 	if (!conn || !newConn) return;
 	
@@ -42,7 +42,7 @@ void prependConnection(clientConnection* newConn, clientConnection** conn)
 	}
 }
 
-void appendConnection(clientConnection* newConn, clientConnection** conn)
+void appendConn(clientConn* newConn, clientConn** conn)
 {
 	if (!conn || !newConn) return;
 
@@ -63,7 +63,7 @@ void appendConnection(clientConnection* newConn, clientConnection** conn)
 	(*conn)->next = newConn;
 }
 
-void removeConnection(clientConnection* conn, clientConnection** root)
+void removeConn(clientConn* conn, clientConn** root)
 {
 	if (!conn || !root) return;
 	
@@ -90,7 +90,7 @@ void removeConnection(clientConnection* conn, clientConnection** root)
 	}
 }
 
-clientConnection* findConnection(clientConnection* conn, struct espconn *pesp_conn)
+clientConn* findConn(clientConn* conn, struct espconn *pesp_conn)
 {
 	while (conn) {
 		if (conn->esp_conn == pesp_conn) {
@@ -102,7 +102,7 @@ clientConnection* findConnection(clientConnection* conn, struct espconn *pesp_co
 	return 0;
 }
 
-clientConnection* findConnectionAddrPort(clientConnection* conn, uint32_t addr, int port)
+clientConn* findConnAddrPort(clientConn* conn, uint32_t addr, int port)
 {
 	while (conn) {
 		if (conn->addr == addr && conn->port == port) {
@@ -115,13 +115,13 @@ clientConnection* findConnectionAddrPort(clientConnection* conn, uint32_t addr, 
 }
 
 
-void removeConnectionAddrPort(clientConnection** root, uint32_t addr, int port)
+void removeConnAddrPort(clientConn** root, uint32_t addr, int port)
 {
-	clientConnection* conn = *root;
+	clientConn* conn = *root;
 	while (conn) {
 		if (conn->addr == addr && conn->port == port) {
 			// remove from chain
-			removeConnection(conn, root);
+			removeConn(conn, root);
 			// erase
 			os_free(conn);
 			// done
@@ -131,7 +131,7 @@ void removeConnectionAddrPort(clientConnection** root, uint32_t addr, int port)
 	}
 }
 
-uint32_t connectionCount(clientConnection* conn)
+uint32_t connCount(clientConn* conn)
 {
 	uint32_t count = 0;
 	while (conn) {
@@ -142,11 +142,11 @@ uint32_t connectionCount(clientConnection* conn)
 }
 
 
-clientConnection* createConnection(struct espconn *pesp_conn)
+clientConn* createConn(struct espconn *pesp_conn)
 {
 	// new clientconnection
-	clientConnection* newConn = (clientConnection*)os_malloc(sizeof(clientConnection));
-	os_memset(newConn, 0, sizeof(clientConnection));
+	clientConn* newConn = (clientConn*)os_malloc(sizeof(clientConn));
+	os_memset(newConn, 0, sizeof(clientConn));
 	
 	// set information
 	os_memcpy((void*)&newConn->addr, (void*)pesp_conn->proto.tcp->remote_ip, 4);
@@ -157,13 +157,54 @@ clientConnection* createConnection(struct espconn *pesp_conn)
 }
 
 
-void clearConnections(clientConnection* conn)
+void clearConnections(clientConn* conn)
 {
+	// correct previous
+	if (conn->prev != 0) {
+		conn->prev->next = 0;
+	}
+	
+	clientConn* tofree = 0;
 	while (conn) {
-		clientConnection* tofree = conn;
+		tofree = conn;
 		conn = conn->next;
 		
 		os_free(tofree);
 	}
 }
 
+
+clientConn* getNextConn(clientConn* conn, clientConn** root, bool loop)
+{
+	clientConn* next = conn->next;
+	if (loop && !next) {
+		if (!*root) {
+			// all done
+			return 0;
+		} else {
+			// start over
+			next = *root;
+		}
+	}
+	return next;
+}
+
+clientConn* removeConnGetNext(clientConn* conn, clientConn** root, bool loop)
+{
+	// remove from list
+	clientConn* next = conn->next;
+	
+	removeConn(conn, root);
+	
+	if (loop && !next) {
+		if (!*root) {
+			// all done
+			return 0;
+		} else {
+			// start over
+			next = *root;
+		}
+	}
+	
+	return next;
+}

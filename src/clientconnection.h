@@ -27,25 +27,27 @@
 #include "espconn.h"
 
 
-typedef struct _clientConnection clientConnection;
+typedef struct _clientConn clientConn;
 
-struct _clientConnection {
-	clientConnection* prev;
-	clientConnection* next;
+struct _clientConn {
+	clientConn* prev;
+	clientConn* next;
 	uint32_t addr;
 	int port;
 	struct espconn *esp_conn;
 };
 
-void prependConnection(clientConnection* newConn, clientConnection** conn);
-void appendConnection(clientConnection* newConn, clientConnection** conn);
-void removeConnection(clientConnection* conn, clientConnection** root);
-clientConnection* findConnection(clientConnection* conn, struct espconn *pesp_conn);
-clientConnection* findConnectionAddrPort(clientConnection* conn, uint32_t addr, int port);
-void removeConnectionAddrPort(clientConnection** root, uint32_t addr, int port);
-uint32_t connectionCount(clientConnection* conn);
-clientConnection* createConnection(struct espconn *pesp_conn);
-void clearConnections(clientConnection* conn);
+void prependConn(clientConn* newConn, clientConn** conn);
+void appendConn(clientConn* newConn, clientConn** conn);
+void removeConn(clientConn* conn, clientConn** root);
+clientConn* findConn(clientConn* conn, struct espconn *pesp_conn);
+clientConn* findConnAddrPort(clientConn* conn, uint32_t addr, int port);
+void removeConnAddrPort(clientConn** root, uint32_t addr, int port);
+uint32_t connCount(clientConn* conn);
+clientConn* createConn(struct espconn *pesp_conn);
+void clearConnections(clientConn* conn);
+clientConn* removeConnGetNext(clientConn* conn, clientConn** root, bool loop);
+clientConn* getNextConn(clientConn* conn, clientConn** root, bool loop);
 
 
 #endif

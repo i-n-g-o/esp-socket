@@ -26,10 +26,6 @@ extern "C" {
 	#include "clientconnection.h"
 }
 
-// additional error
-#define UNKNOWN_ERROR       -100   /* Unknown error.           */
-
-
 /* TODO
  use secure calls
  */
@@ -39,8 +35,8 @@ class ESP8266TCPServer : public ESP8266SocketBase
 public:
 	ESP8266TCPServer(int port);
 	
-	bool start();
-	bool stop();
+	sint8 start();
+	sint8 stop();
 	bool setTimeout(uint32 interval);
 	bool setMaxClients(uint8 max);
 	uint8 getMaxClients() {return maxClients; };
@@ -53,8 +49,9 @@ public:
 	sint8 sendAll(const char* data); // send data to all connected clients
 	
 	
-	void _onClientDataCb(struct espconn *pesp_conn, char *data, unsigned short length);
-	
+	//----------------------------
+	// internal callbacks - override
+	void _onClientDataCb(struct espconn *pesp_conn, char *data, unsigned short length);	
 	
 	// tcp callbacks
 	void _onClientConnectCb(struct espconn *pesp_conn_client);
@@ -63,11 +60,13 @@ public:
 	
 	
 private:
+	void printConnections(clientConn* conn);
+	
 	uint8				bIsSecure;
 	uint32				timeout;
 	uint8				maxClients;
 	
-	clientConnection* clientConnections;
+	clientConn* clientConnections;
 };
 
 

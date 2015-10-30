@@ -171,21 +171,45 @@ ESP8266SocketBase::~ESP8266SocketBase()
 //----------------------------
 sint8 ESP8266SocketBase::send(uint8* data, uint16 length)
 {
-	// TODO:
-	// check for connected status?
-	// is it handled in espconn_send?
+	if (esp_conn->state == ESPCONN_CLOSE) {
+		// return error ESPCONN_CONN -11
+		return ESPCONN_CONN;
+	}
+	
+
+	// wait while writing
 	while (esp_conn->state == ESPCONN_WRITE) {
 		esp_schedule(); // keep going?
 		esp_yield();
 	}
 	
-	// send
+	// try to send
 	return espconn_send(esp_conn, data, length);
 }
 
 sint8 ESP8266SocketBase::send(const char* data)
 {
 	return send((uint8*)data, strlen(data));
+}
+
+
+//----------------------------
+// logging
+//----------------------------
+// send info to user CB
+void ESP8266SocketBase::info(const char* info)
+{
+	if (onInfoCb != 0) {
+		onInfoCb(info);
+	}
+}
+
+// send an error to user CB
+void ESP8266SocketBase::error(const char* error, sint8 err)
+{
+	if (onErrorCb != 0) {
+		onErrorCb(error, err);
+	}
 }
 
 
@@ -229,6 +253,21 @@ void ESP8266SocketBase::onDisconnected( void (*function)() )
 void ESP8266SocketBase::onReconnect( void (*function)(ESP8266Client&, sint8) )
 {
 	onClientReconnectCb = function;
+}
+
+//----------------------------
+//----------------------------
+// info, error
+//----------------------------
+//----------------------------
+void ESP8266SocketBase::onInfo( void(*function)(const char* info) )
+{
+	onInfoCb = function;
+}
+
+void ESP8266SocketBase::onError( void (*function)(const char*, sint8) )
+{
+	onErrorCb = function;
 }
 
 

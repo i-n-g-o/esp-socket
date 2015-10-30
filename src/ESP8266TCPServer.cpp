@@ -18,7 +18,6 @@
  //-------------------------------------------------------------------------------*/
 #include "ESP8266TCPServer.h"
 
-
 //----------------------------
 //----------------------------
 // constructor
@@ -46,25 +45,44 @@ ESP8266TCPServer::ESP8266TCPServer(int port) : ESP8266SocketBase()
 // methods
 //----------------------------
 //----------------------------
-bool ESP8266TCPServer::start()
+sint8 ESP8266TCPServer::start()
 {
 	// start server
 	sint8 res = espconn_accept(esp_conn);
 	if (res != ESPCONN_OK) {
 		// error
-		return false;
+		return res;
 	}
 
-	res = espconn_regist_time(esp_conn, timeout, 0);
-	
-	return res == ESPCONN_OK;
+	return espconn_regist_time(esp_conn, timeout, 0);
 }
 
 
-bool ESP8266TCPServer::stop()
+sint8 ESP8266TCPServer::stop()
 {
+	// disconnect all clients, clean list
+	clientConn* conn = clientConnections;
+	while (conn) {
+		sint8 res = espconn_disconnect(conn->esp_conn);
+		if (res != ESPCONN_OK &&
+			res != ESPCONN_ARG)
+		{
+			error("could not disconnect client. reason: ", res);
+			// we need to leave the client in the list
+			conn = getNextConn(conn, &clientConnections, true);
+		} else {
+			conn = removeConnGetNext(conn, &clientConnections, true);
+		}
+	}
+
+	// do we need a timeout here?
+	while (esp_conn->state == ESPCONN_CONNECT) {
+		esp_schedule(); // keep going?
+		esp_yield();
+	}
+	
 	// stop server
-	espconn_delete(esp_conn);
+	return espconn_delete(esp_conn);
 }
 
 
@@ -118,10 +136,10 @@ sint8 ESP8266TCPServer::send(uint8 clientId, uint8 *data, uint16 length)
 	
 	
 	// get espconn of client
-	clientConnection* client_conn = findConnectionAddrPort(clientConnections, clientAddr, connInfo.remote_port);
+	clientConn* client_conn = findConnAddrPort(clientConnections, clientAddr, connInfo.remote_port);
 	
 	if (!client_conn) {
-		return UNKNOWN_ERROR;
+		return ESP_UNKNOWN_ERROR;
 	}
 		
 	
@@ -137,7 +155,7 @@ sint8 ESP8266TCPServer::send(uint8 clientId, uint8 *data, uint16 length)
 		return res;
 	}
 	
-	return UNKNOWN_ERROR;
+	return ESP_UNKNOWN_ERROR;
 }
 
 sint8 ESP8266TCPServer::send(uint8 clientId, const char* data)
@@ -149,10 +167,10 @@ sint8 ESP8266TCPServer::send(uint8 clientId, const char* data)
 sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 {
 	// two-pass sending
-	clientConnection* busyClients = 0;
+	clientConn* busyClients = 0;
 	
 	// 1 - try to send everything
-	clientConnection* conn = clientConnections;
+	clientConn* conn = clientConnections;
 	while (conn) {
 		
 		if (conn->esp_conn->state == ESPCONN_CONNECT) {
@@ -162,21 +180,22 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 		} else if (conn->esp_conn->state == ESPCONN_WRITE) {
 			
 			// add this to busy clients
-			clientConnection* newConn = createConnection(conn->esp_conn);
-			prependConnection(newConn, &busyClients);
+			clientConn* newConn = createConn(conn->esp_conn);
+			prependConn(newConn, &busyClients);
 			
 		} else if (conn->esp_conn->state == ESPCONN_CLOSE) {
 			
 			// remove from list
-			clientConnection* tofree = conn;
+			info("sendAll - closed - remove");
+			clientConn* tofree = conn;
 			conn = conn->next;
 			
-			removeConnection(tofree, &clientConnections);
+			removeConn(tofree, &clientConnections);
 			continue;
 			
 		} else {
 			// what state?
-			//
+			error("sending client in state: ", conn->esp_conn->state);
 		}
 		
 		conn = conn->next;
@@ -187,26 +206,14 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 		conn = busyClients;
 		while (conn) {
 			
-			// deal with ESPCONN_NONE, ESPCONN_WAIT, ESPCONN_LISTEN?
+			// deal with ESPCONN_WAIT, ESPCONN_LISTEN?
 			
 			if (conn->esp_conn->state == ESPCONN_CONNECT) {
+				
 				sint8 res = espconn_send(conn->esp_conn, data, length);
-				
-				// remove from list
-				clientConnection* tofree = conn;
-				conn = conn->next;
-				
-				removeConnection(tofree, &busyClients);
-				
-				if (!conn) {
-					if (!busyClients) {
-						// all done
-						break;
-					} else {
-						// start over
-						conn = busyClients;
-					}
-				}
+
+				// remove from list - get next elements, loop
+				conn = removeConnGetNext(conn, &busyClients, true);
 				
 				continue;
 				
@@ -214,39 +221,28 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 				// give it some time
 				esp_schedule(); // keep going?
 				esp_yield();
-			} else if (conn->esp_conn->state == ESPCONN_CLOSE) {
-				
-				// remove from list
-				clientConnection* tofree = conn;
-				conn = conn->next;
-				
-				removeConnection(tofree, &busyClients);
-				
-				if (!conn) {
-					if (!busyClients) {
-						// all done
-						break;
-					} else {
-						// start over
-						conn = busyClients;
-					}
+			} else if (conn->esp_conn->state == ESPCONN_CLOSE ||
+					   conn->esp_conn->state == ESPCONN_NONE)
+			{
+				// remove from from original list...
+				clientConn* origConn = findConn(clientConnections, conn->esp_conn);
+				if (origConn) {
+					removeConn(origConn, &clientConnections);
+				} else {
+					// client should be in list?
+					// unless it was removed by disconnect CB
 				}
+
+				// remove from list - get next elements, loop
+				conn = removeConnGetNext(conn, &busyClients, true);
 				
 			} else {
-				// what state?
+				// what state?				
+				error("busyClient in state", conn->esp_conn->state);
 			}
-			
-			//
-			conn = conn->next;
-			if (!conn) {
-				if (!busyClients) {
-					// all done
-					break;
-				} else {
-					// start over
-					conn = busyClients;
-				}
-			}
+
+			// get next element, loop
+			conn = getNextConn(conn, &busyClients, true);
 		}
 	}
 	
@@ -256,6 +252,24 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 sint8 ESP8266TCPServer::sendAll(const char* data)
 {
 	return sendAll((uint8*)data, strlen(data));
+}
+
+
+// log connections to info
+void ESP8266TCPServer::printConnections(clientConn* conn)
+{
+	char buf[1024];
+	memset(buf, 0, 1024);
+	
+	
+	info("-----clients-----");
+	while (conn) {
+		
+		os_sprintf(buf, "%u: %u ---> %lu", conn->addr, conn->port, (unsigned long)conn->next);
+		info(buf);
+		
+		conn = conn->next;
+	}
 }
 
 
@@ -283,13 +297,15 @@ void ESP8266TCPServer::_onClientDataCb(struct espconn *pesp_conn, char *data, un
 //----------------------------
 void ESP8266TCPServer::_onClientConnectCb(struct espconn *pesp_conn)
 {
+	info("server _clientConnect");
+	
 	// new clientconnection
-	clientConnection* newConnection = createConnection(pesp_conn);
+	clientConn* newConnection = createConn(pesp_conn);
 	
 	// prepend to chained list
-	prependConnection(newConnection, &clientConnections);
+	prependConn(newConnection, &clientConnections);
 	
-	printConnections(clientConnections);
+//	printConnections(clientConnections);
 	
 	// call user CB
 	if (onClientConnectCb != 0) {
@@ -301,6 +317,7 @@ void ESP8266TCPServer::_onClientConnectCb(struct espconn *pesp_conn)
 void ESP8266TCPServer::_onClientDisconnectCb(struct espconn *pesp_conn)
 {
 	// receiving servers espconn
+	info("server _clientDisconnect");
 	
 	// get remote-ip-port from client
 	int remoteP = pesp_conn->proto.tcp->remote_port;
@@ -308,9 +325,9 @@ void ESP8266TCPServer::_onClientDisconnectCb(struct espconn *pesp_conn)
 	os_memcpy((void*)&remoteAddr, (void*)pesp_conn->proto.tcp->remote_ip, 4);
 	
 	// search for espconn in connections and remove
-	removeConnectionAddrPort(&clientConnections, remoteAddr, remoteP);
+	removeConnAddrPort(&clientConnections, remoteAddr, remoteP);
 
-	printConnections(clientConnections);
+//	printConnections(clientConnections);
 	
 	// call user CB
 	if (onClientDisconnectCb != 0) {
@@ -321,6 +338,7 @@ void ESP8266TCPServer::_onClientDisconnectCb(struct espconn *pesp_conn)
 void ESP8266TCPServer::_onClientReconnectCb(struct espconn *pesp_conn, sint8 err)
 {
 	// receiving servers espconn
+	info("server _clientReconnect");
 	
 	// get remote-ip-port from client
 	int remoteP = pesp_conn->proto.tcp->remote_port;
@@ -329,12 +347,16 @@ void ESP8266TCPServer::_onClientReconnectCb(struct espconn *pesp_conn, sint8 err
 	
 	
 	// remove client from list??
-	clientConnection* clientConn = findConnectionAddrPort(clientConnections, remoteAddr, remoteP);
+	clientConn* clientConn = findConnAddrPort(clientConnections, remoteAddr, remoteP);
 	if (clientConn) {
-		removeConnection(clientConn, &clientConnections);
+		removeConn(clientConn, &clientConnections);
+	} else {
+		// why?
+		// this client client should be in list
+		error("disconnect: did not find client in list", ESP_UNKNOWN_ERROR);
 	}
 	
-	printConnections(clientConnections);
+//	printConnections(clientConnections);
 	
 	// call user CB
 	if (onClientReconnectCb != 0) {
