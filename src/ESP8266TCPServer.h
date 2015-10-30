@@ -27,7 +27,7 @@ extern "C" {
 }
 
 /* TODO
- use secure calls
+ - use secure calls
  */
 
 class ESP8266TCPServer : public ESP8266SocketBase

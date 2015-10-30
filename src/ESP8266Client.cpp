@@ -138,12 +138,13 @@ bool ESP8266Client::connect()
 		return false;
 	}
 	
+	sint8 res = ESPCONN_OK;
+	
 	// if connected... disconnect first
 	if (m_bIsConnected) {
 		disconnect();
 	}
 	
-	sint8 res = 0;
 	if (isTcp()) {
 		res = espconn_connect(esp_conn);
 		if (res == ESPCONN_OK) {
@@ -153,6 +154,10 @@ bool ESP8266Client::connect()
 		res = espconn_create(esp_conn);
 		m_bIsConnected = true;
 		m_bIsConnecting = false;
+	}
+	
+	if (res != ESPCONN_OK) {
+		error("could not connect: ", res);
 	}
 	
 	return res == ESPCONN_OK;
@@ -171,20 +176,12 @@ bool ESP8266Client::disconnect()
 		m_bIsConnected = false;
 	}
 	
+	if (res != ESPCONN_OK) {
+		error("could not disconnect: ", res);
+	}
+	
 	return res == ESPCONN_OK;
 }
-
-
-////----------------------------
-//// sending
-////----------------------------
-//sint8 ESP8266Client::send(uint8 *data, uint16 length)
-//{
-//	// safety - needed?
-////	setPort(remotePort);
-//
-//	return ESP8266SocketBase::send(data, length);
-//}
 
 
 //----------------------------
