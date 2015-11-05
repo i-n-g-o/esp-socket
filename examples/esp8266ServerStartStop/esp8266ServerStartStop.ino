@@ -45,11 +45,12 @@ void loop() {
 
   // stop server
   Serial.print("stopping server...");  
-  sint8 result = server.stop();
-  if (result != ESPCONN_OK) {
+  sint8 err = server.stop();
+  if (err != ESPCONN_OK) {
     // could not stop server
     Serial.print("error: could not stop server: ");
-    Serial.println(result);
+    Serial.println(espErrorToStr(err));
+    Serial.println(espErrorDesc(err));
   } else {
     Serial.println("OK");
   }
@@ -57,11 +58,12 @@ void loop() {
   // wait 5 seconds
   delay(5000);
   Serial.print("starting server...");  
-  result = server.start();
-  if (result != ESPCONN_OK) {
+  err = server.start();
+  if (err != ESPCONN_OK) {
     // could not start server
     Serial.print("error: could not start server: ");
-    Serial.println(result);
+    Serial.println(espErrorToStr(err));
+    Serial.println(espErrorDesc(err));
   } else {
     Serial.println("OK");
   }

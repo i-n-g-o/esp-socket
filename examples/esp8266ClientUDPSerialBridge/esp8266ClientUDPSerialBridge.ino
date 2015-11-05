@@ -5,8 +5,8 @@ const char* ssid     = "your-ssid";
 const char* password = "your-ssid-password";
 
 
-// create a TCP client
-ESP8266Client client("192.168.178.84", 9003, UDP);
+// create a UDP client
+ESP8266Client client("ip-of-server", 8080);
 
 
 void setup() {
@@ -118,5 +118,6 @@ void onDisconnectCb()
 void onReconnectCb(ESP8266Client& client, sint8 err)
 {
   Serial.print("reconnect CB: ");
-  Serial.println(err);
+  Serial.println(espErrorToStr(err));
+  Serial.println(espErrorDesc(err));
 }

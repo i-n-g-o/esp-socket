@@ -1,11 +1,11 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266Client.h>
 
-const char* ssid     = "your-ssid";
-const char* password = "your-ssid-password";
+//const char* ssid     = "your-ssid";
+//const char* password = "your-ssid-password";
 
 // create a TCP client
-ESP8266Client client("192.168.178.84", 9001);
+ESP8266Client client("ip-to-server", 9002);
 
 unsigned long now = 0;
 
@@ -81,5 +81,6 @@ void onDisconnectCb()
 void onReconnectCb(ESP8266Client& client, sint8 err)
 {
   Serial.print("reconnect CB: ");
-  Serial.println(err);
+  Serial.println(espErrorToStr(err));
+  Serial.println(espErrorDesc(err));
 }

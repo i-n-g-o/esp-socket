@@ -31,6 +31,8 @@ extern "C" {
 	#include "ip_addr.h"
 	#include "espconn.h"
 	
+	#include "esperr.h"
+	
 	extern void esp_schedule();
 	extern void esp_yield();
 }
@@ -38,32 +40,6 @@ extern "C" {
 
 #define TCP ESPCONN_TCP
 #define UDP ESPCONN_UDP
-
-
-// copied from SDK 1.3.0
-// /* Definitions for error constants. */
-//
-//#define ESPCONN_OK          0    /* No error, everything OK. */
-//#define ESPCONN_MEM        -1    /* Out of memory error.     */
-//#define ESPCONN_TIMEOUT    -3    /* Timeout.                 */
-//#define ESPCONN_RTE        -4    /* Routing problem.         */
-//#define ESPCONN_INPROGRESS  -5    /* Operation in progress    */
-//
-//#define ESPCONN_ABRT       -8    /* Connection aborted.      */
-//#define ESPCONN_RST        -9    /* Connection reset.        */
-//#define ESPCONN_CLSD       -10   /* Connection closed.       */
-//#define ESPCONN_CONN       -11   /* Not connected.           */
-//
-//#define ESPCONN_ARG        -12   /* Illegal argument.        */
-//#define ESPCONN_ISCONN     -15   /* Already connected.       */
-//
-//#define ESPCONN_HANDSHAKE  -28   /* ssl handshake failed	 */
-//#define ESPCONN_SSL_INVALID_DATA  -61   /* ssl application invalid	 */
-
-
-// additional error
-#define ESP_UNKNOWN_ERROR       -100				/* Unknown error.           */
-
 
 
 class ESP8266Client;

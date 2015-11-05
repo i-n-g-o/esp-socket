@@ -1,8 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266TCPServer.h>
 
-const char* ssid     = "your-ssid";
-const char* password = "your-ssid-password";
+const char *ssid = "SerialBridge";
+const char *password = "thereisnospoon";
 
 // create a server on port 9001
 ESP8266TCPServer server(9001);
@@ -12,25 +12,15 @@ void setup() {
 
   Serial.begin(115200);
   delay(10);
-
-  // We start by connecting to a WiFi network
-
+ 
   Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  
-  WiFi.begin(ssid, password);
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }  
+  Serial.print("Configuring access point...");
+  /* You can remove the password parameter if you want the AP to be open. */
+  WiFi.softAP(ssid, password);
 
-  Serial.println("");
-  Serial.println("WiFi connected");  
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(myIP);
 
   
   // connected, start server

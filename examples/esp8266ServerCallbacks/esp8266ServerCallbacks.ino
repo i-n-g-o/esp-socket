@@ -66,7 +66,8 @@ void onDisconnectCb()
 void onReconnectCb(ESP8266Client& client, sint8 err)
 {
   Serial.print("client reconnect. error: ");
-  Serial.println(err);
+  Serial.println(espErrorToStr(err));
+  Serial.println(espErrorDesc(err));
 }
 
 void onDataCb(ESP8266Client& client, char *data, unsigned short length)
@@ -92,74 +93,5 @@ void onErrorCb(const char* error, sint8 error_num)
   Serial.print("error: ");
   Serial.print(error);
   Serial.println(error_num);
-}
-
-
-
-
-
-
-
-void printConnectionInfo(remot_info* info) {
-  
-  for (int i=0; i<server.getMaxClients(); i++) {
-    remot_info conn = info[i];  
-    // check state
-    if (conn.state >= ESPCONN_CONNECT && conn.remote_port > 0) {
-      
-      Serial.print("[");
-      Serial.print(i);
-      Serial.print("]: ");
-      Serial.print(conn.state);
-
-      
-      Serial.print(" remote_port: ");
-      Serial.print(conn.remote_port);
-      Serial.print(" ip: ");
-      Serial.print(conn.remote_ip[3]);
-      
-      Serial.println();
-    }
-  }
-}
-
-
-void printEspConnInfo(struct espconn *pesp_conn_client) {
-  if (pesp_conn_client->type == ESPCONN_INVALID) {
-    Serial.println("ESPCONN_INVALID");
-  } else if (pesp_conn_client->type == ESPCONN_TCP) {
-    Serial.println("ESPCONN_TCP");
-
-    esp_tcp* tcp = pesp_conn_client->proto.tcp;
-
-    Serial.print("local port: ");
-    Serial.println(tcp->local_port);
-    Serial.print("remote port: ");
-    Serial.println(tcp->remote_port);
-
-
-    Serial.print("local ip: ");
-    Serial.print(tcp->local_ip[0]);
-    Serial.print(".");
-    Serial.print(tcp->local_ip[1]);
-    Serial.print(".");
-    Serial.print(tcp->local_ip[2]);
-    Serial.print(".");
-    Serial.println(tcp->local_ip[3]);
-
-    Serial.print("remote ip: ");
-    Serial.print(tcp->remote_ip[0]);
-    Serial.print(".");
-    Serial.print(tcp->remote_ip[1]);
-    Serial.print(".");
-    Serial.print(tcp->remote_ip[2]);
-    Serial.print(".");
-    Serial.println(tcp->remote_ip[3]);
-    
-  } else if (pesp_conn_client->type == ESPCONN_UDP) {
-    Serial.println("ESPCONN_UDP");
-
-    esp_udp* udp = pesp_conn_client->proto.udp;
-  }
 }
 

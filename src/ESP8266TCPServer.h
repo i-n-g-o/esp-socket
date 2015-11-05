@@ -28,6 +28,7 @@ extern "C" {
 
 /* TODO
  - use secure calls
+ - how about udp?
  */
 
 class ESP8266TCPServer : public ESP8266SocketBase
