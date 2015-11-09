@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266Client.h>
 
+//------------------------------------------
 const char* ssid     = "your-ssid";
 const char* password = "your-ssid-password";
 
@@ -8,7 +9,15 @@ const char* password = "your-ssid-password";
 // create a UDP client
 ESP8266Client client("ip-of-server", 8080);
 
+//------------------------------------------
+// CB forward declarations
+void onDataCb(ESP8266Client& client, char *data, unsigned short length);
+void onConnectCb(ESP8266Client& client);
+void onDisconnectCb();
+void onReconnectCb(ESP8266Client& client, sint8 err);
 
+
+//------------------------------------------
 void setup() {
   Serial.begin(115200);
   delay(10);

@@ -1,13 +1,22 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266TCPServer.h>
 
+//------------------------------------------
 const char* ssid     = "your-ssid";
 const char* password = "your-ssid-password";
 
 // create a server on port 9001
 ESP8266TCPServer server(9001);
 
+//------------------------------------------
+// CB forward declarations
+void onConnectCb(ESP8266Client& client);
+void onDisconnectCb();
+void onReconnectCb(ESP8266Client& client, sint8 err);
+void onDataCb(ESP8266Client& client, char *data, unsigned short length);
 
+
+//------------------------------------------
 void setup() {
 
   Serial.begin(115200);
