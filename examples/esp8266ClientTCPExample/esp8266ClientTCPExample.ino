@@ -1,8 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266Client.h>
 
-//const char* ssid     = "your-ssid";
-//const char* password = "your-ssid-password";
+const char* ssid     = "your-ssid";
+const char* password = "your-ssid-password";
 
 // create a TCP client
 ESP8266Client client("ip-to-server", 9002);

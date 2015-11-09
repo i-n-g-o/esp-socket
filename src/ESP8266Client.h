@@ -22,6 +22,15 @@
 
 #include "ESP8266SocketBase.h"
 
+extern "C" {
+	#include "ets_sys.h"
+	#include "osapi.h"
+	#include "mem.h"
+	#include "ip_addr.h"
+	#include "espconn.h"
+	
+	#include "esperr.h"
+}
 
 /* TODO
  - remotePort necessary??
@@ -43,7 +52,6 @@ public:
 	
 	uint32_t getAddress();
 	int getPort();
-	
 	
 	bool connect();
 	bool disconnect();

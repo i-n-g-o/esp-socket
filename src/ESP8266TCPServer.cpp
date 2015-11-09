@@ -151,7 +151,12 @@ sint8 ESP8266TCPServer::send(uint8 clientId, uint8 *data, uint16 length)
 	
 	if (client_conn->esp_conn->state == ESPCONN_CONNECT) {
 		
-		sint8 res = espconn_send(client_conn->esp_conn, data, length);
+		// SDK 1.3 call
+//		sint8 res = espconn_send(client_conn->esp_conn, data, length);
+		
+		// keep it backward compatible with SDK 1.2 for now
+		sint8 res = espconn_sent(client_conn->esp_conn, data, length);
+		
 		return res;
 	}
 	
@@ -175,7 +180,12 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 		
 		if (conn->esp_conn->state == ESPCONN_CONNECT) {
 			
-			sint8 res = espconn_send(conn->esp_conn, data, length);
+			// SDK 1.3 call
+//			sint8 res = espconn_send(conn->esp_conn, data, length);
+			
+			// keep it backward compatible with SDK 1.2 for now
+			sint8 res = espconn_sent(conn->esp_conn, data, length);
+
 			
 		} else if (conn->esp_conn->state == ESPCONN_WRITE) {
 			
@@ -210,8 +220,12 @@ sint8 ESP8266TCPServer::sendAll(uint8 *data, uint16 length)
 			
 			if (conn->esp_conn->state == ESPCONN_CONNECT) {
 				
-				sint8 res = espconn_send(conn->esp_conn, data, length);
+				// SDK 1.3 call
+//				sint8 res = espconn_send(conn->esp_conn, data, length);
 
+				// keep it backward compatible with SDK 1.2 for now
+				sint8 res = espconn_sent(conn->esp_conn, data, length);
+				
 				// remove from list - get next elements, loop
 				conn = removeConnGetNext(conn, &busyClients, true);
 				

@@ -20,10 +20,18 @@
 #ifndef ESP8266_SOCKET_SERVER
 #define ESP8266_SOCKET_SERVER
 
+#include "ESP8266SocketBase.h"
 #include "ESP8266Client.h"
 
 extern "C" {
+	#include "ets_sys.h"
+	#include "osapi.h"
+	#include "mem.h"
+	#include "ip_addr.h"
+	#include "espconn.h"
+	
 	#include "clientconnection.h"
+	#include "esperr.h"
 }
 
 /* TODO

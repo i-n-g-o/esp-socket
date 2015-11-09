@@ -78,8 +78,10 @@ static const char* const ESPCONN_ISCONN_DESC_STR = "Already connected.";
 static const char* const ESPCONN_HANDSHAKE_STR = "ESPCONN_HANDSHAKE";
 static const char* const ESPCONN_HANDSHAKE_DESC_STR = "ssl handshake failed.";
 
+#ifdef ESPCONN_SSL_INVALID_DATA
 static const char* const ESPCONN_SSL_INVALID_DATA_STR = "ESPCONN_SSL_INVALID_DATA";
 static const char* const ESPCONN_SSL_INVALID_DATA_DESC_STR = "ssl application invalid.";
+#endif
 
 // additional error
 static const char* const ESP_UNKNOWN_ERROR_STR = "ESP_UNKNOWN_ERROR";
@@ -130,8 +132,10 @@ const char* espErrorToStr(sint8 errNum)
 		case ESPCONN_HANDSHAKE:
 			return ESPCONN_HANDSHAKE_STR;
 			break;
+#ifdef ESPCONN_SSL_INVALID_DATA
 		case ESPCONN_SSL_INVALID_DATA:
 			return ESPCONN_SSL_INVALID_DATA_STR;
+#endif
 		case ESP_UNKNOWN_ERROR:
 			return ESP_UNKNOWN_ERROR_STR;
 			break;
@@ -182,8 +186,10 @@ const char* espErrorDesc(sint8 errNum)
 		case ESPCONN_HANDSHAKE:
 			return ESPCONN_HANDSHAKE_DESC_STR;
 			break;
+#ifdef ESPCONN_SSL_INVALID_DATA
 		case ESPCONN_SSL_INVALID_DATA:
 			return ESPCONN_SSL_INVALID_DATA_DESC_STR;
+#endif
 			
 		case ESP_UNKNOWN_ERROR:
 			return ESP_UNKNOWN_ERROR_DESC_STR;

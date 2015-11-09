@@ -184,7 +184,10 @@ sint8 ESP8266SocketBase::send(uint8* data, uint16 length)
 	}
 	
 	// try to send
-	return espconn_send(esp_conn, data, length);
+//	return espconn_send(esp_conn, data, length);
+	
+	// keep it backward compatible with SDK 1.2 for now
+	return espconn_sent(esp_conn, data, length);
 }
 
 sint8 ESP8266SocketBase::send(const char* data)
