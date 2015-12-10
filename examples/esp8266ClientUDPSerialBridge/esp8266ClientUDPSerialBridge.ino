@@ -7,7 +7,7 @@ const char* password = "your-ssid-password";
 
 
 // create a UDP client
-ESP8266Client client("ip-of-server", 8080);
+ESP8266Client client("ip-of-server", 8080, UDP);
 
 //------------------------------------------
 // CB forward declarations
